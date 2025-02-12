@@ -82,7 +82,7 @@ pipeline {
             sshagent(credentials: [SSH_CREDENTIALS]) {
                 sh '''
                 echo "🔹 Stopping and removing container on ${TEST_SERVER}..."
-                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}"
+                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} || true"
                 '''
             }
         }
