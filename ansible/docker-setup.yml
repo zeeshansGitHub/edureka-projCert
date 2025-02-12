@@ -27,15 +27,36 @@
       apt_repository:
         repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
         state: present
+        update_cache: yes  # Ensure repo updates
 
     - name: Install Docker
       apt:
         name: docker-ce
         state: present
-        timeout: 300  # Set timeout to 5 minutes
 
-    - name: Ensure Docker is running
+    - name: Restart Docker service
       service:
         name: docker
-        state: started
+        state: restarted
         enabled: yes
+
+    # 🔹 PULL WEBSITE IMAGE
+    - name: Pull website Docker image
+      docker_image:
+        name: devopsedu/webapp
+        source: pull
+
+    # 🔹 STOP AND REMOVE EXISTING CONTAINER (If Running)
+    - name: Stop existing container (if running)
+      ignore_errors: yes
+      shell: docker stop php-app && docker rm php-app
+
+    # 🔹 RUN WEBSITE CONTAINER
+    - name: Run website container
+      docker_container:
+        name: php-app
+        image: devopsedu/webapp
+        state: started
+        restart_policy: always
+        ports:
+          - "80:80"
