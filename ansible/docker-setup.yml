@@ -46,9 +46,6 @@ pipeline {
                         echo "🔹 Pulling Docker image on ${TEST_SERVER}..."
                         ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker pull ${IMAGE_NAME}"
 
-                        echo "🔹 Stopping and removing any existing container named ${CONTAINER_NAME} on ${TEST_SERVER}..."
-                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
-
                         echo "🔹 Running Docker container on ${TEST_SERVER}..."
                         ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
                         '''
@@ -64,11 +61,6 @@ pipeline {
                     sh '''
                     echo "🔹 Deploying to Production Server (${PROD_SERVER})..."
                     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${PROD_SERVER} "docker pull ${IMAGE_NAME}"
-
-                    echo "🔹 Stopping and removing any existing container named ${CONTAINER_NAME} on ${PROD_SERVER}..."
-                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${PROD_SERVER} "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
-
-                    echo "🔹 Running Docker container on ${PROD_SERVER}..."
                     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
                     '''
                 }
@@ -82,7 +74,7 @@ pipeline {
             sshagent(credentials: [SSH_CREDENTIALS]) {
                 sh '''
                 echo "🔹 Stopping and removing container on ${TEST_SERVER}..."
-                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} || true"
+                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}"
                 '''
             }
         }
