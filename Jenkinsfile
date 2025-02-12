@@ -6,6 +6,7 @@ pipeline {
         REPO_URL = "https://github.com/zeeshansGitHub/edureka-projCert.git"
         IMAGE_NAME = "devopsedu/webapp"
         CONTAINER_NAME = "php-app"
+        SSH_CREDENTIAL_ID = "jenkins_slave_key"
     }
 
     stages {
@@ -18,11 +19,10 @@ pipeline {
         stage('Install Puppet Agent') {
             steps {
                 script {
-                    // Use SSH agent credentials for the TEST_SERVER
-                    sshagent(credentials: ['jenkins_slave_key']) {
+                    sshagent(credentials: [SSH_CREDENTIAL_ID]) {
                         sh '''
-                        ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} sudo apt update
-                        ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} sudo apt install -y puppet-agent
+                        echo "🔹 Connecting to TEST_SERVER (${TEST_SERVER}) to install Puppet..."
+                        ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "sudo apt update && sudo apt install -y puppet-agent"
                         '''
                     }
                 }
@@ -32,9 +32,9 @@ pipeline {
         stage('Install Docker with Ansible') {
             steps {
                 script {
-                    // Use SSH agent credentials for the TEST_SERVER
-                    sshagent(credentials: ['jenkins_slave_key']) {
+                    sshagent(credentials: [SSH_CREDENTIAL_ID]) {
                         sh '''
+                        echo "🔹 Running Ansible playbook to install Docker on ${TEST_SERVER}..."
                         ansible-playbook -i ${TEST_SERVER}, ansible/docker-setup.yml
                         '''
                     }
@@ -45,9 +45,12 @@ pipeline {
         stage('Build & Deploy Container') {
             steps {
                 script {
-                    sshagent(credentials: ['jenkins_slave_key']) {
+                    sshagent(credentials: [SSH_CREDENTIAL_ID]) {
                         sh '''
+                        echo "🔹 Pulling Docker image on ${TEST_SERVER}..."
                         ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker pull ${IMAGE_NAME}"
+
+                        echo "🔹 Running Docker container on ${TEST_SERVER}..."
                         ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
                         '''
                     }
@@ -57,10 +60,11 @@ pipeline {
 
         stage('Deploy to Production') {
             steps {
-                input message: "Deploy to production?"
+                input message: "🚀 Deploy to production?"
                 script {
-                    sshagent(credentials: ['jenkins_slave_key']) {
+                    sshagent(credentials: [SSH_CREDENTIAL_ID]) {
                         sh '''
+                        echo "🔹 Deploying to Production Server (${PROD_SERVER})..."
                         ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker pull ${IMAGE_NAME}"
                         ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
                         '''
@@ -70,13 +74,13 @@ pipeline {
         }
     }
 
-    // ✅ FIXED: Use post { failure { ... } } instead of when { failed() }
     post {
         failure {
-            echo "Deployment failed, rolling back..."
+            echo "⚠️ Deployment failed, rolling back..."
             script {
-                sshagent(credentials: ['jenkins_slave_key']) {
+                sshagent(credentials: [SSH_CREDENTIAL_ID]) {
                     sh '''
+                    echo "🔹 Stopping and removing container on ${TEST_SERVER}..."
                     ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}"
                     '''
                 }
