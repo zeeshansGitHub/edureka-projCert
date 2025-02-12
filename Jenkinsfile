@@ -1,8 +1,8 @@
 pipeline {
     agent any
     environment {
-        TEST_SERVER = "44.211.134.42"
-        PROD_SERVER = "18.212.183.175"
+        TEST_SERVER = "172.31.82.79"
+        PROD_SERVER = "172.31.83.204"
         REPO_URL = "https://github.com/zeeshansGitHub/edureka-projCert.git"
         IMAGE_NAME = "devopsedu/webapp"
         CONTAINER_NAME = "php-app"
