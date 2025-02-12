@@ -4,12 +4,9 @@ pipeline {
         TEST_SERVER = "172.31.82.79"
         PROD_SERVER = "172.31.83.204"
         REPO_URL = "https://github.com/zeeshansGitHub/edureka-projCert.git"
-        IMAGE_NAME = "devopsedu/webapp"  // Consider changing to a custom name if needed
+        IMAGE_NAME = "devopsedu/webapp"  // Custom name, but not pushed to Docker Hub
         CONTAINER_NAME = "php-app"
         SSH_CREDENTIALS = 'ssh_key'  // Ensure this is correctly stored in Jenkins credentials
-        DOCKER_REGISTRY = "docker.io" // Replace with your registry if needed
-        DOCKER_USERNAME = "your_dockerhub_username"
-        DOCKER_PASSWORD = "your_dockerhub_password"
     }
 
     stages {
@@ -28,25 +25,8 @@ pipeline {
                     echo "🔹 Building Docker image from Dockerfile..."
                 }
                 sh '''
-                docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest .
+                docker build -t ${IMAGE_NAME}:latest .
                 '''
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    echo "🔹 Pushing Docker image to Docker registry..."
-                }
-                withCredentials([usernamePassword(credentialsId: 'dockerhub_credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh '''
-                    echo "🔹 Logging into Docker registry..."
-                    docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-
-                    echo "🔹 Pushing the image to Docker registry..."
-                    docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
-                    '''
-                }
             }
         }
 
@@ -99,15 +79,8 @@ pipeline {
             steps {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
-                    echo "🔹 Pulling Docker image on ${TEST_SERVER}..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker pull ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
-
-                    echo "🔹 Stopping existing container (if running)..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} || true"
-                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker rm ${CONTAINER_NAME} || true"
-
-                    echo "🔹 Running new Docker container on ${TEST_SERVER}..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
+                    echo "🔹 Running Docker container on ${TEST_SERVER}..."
+                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
                     '''
                 }
             }
@@ -118,15 +91,8 @@ pipeline {
                 input message: "🚀 Deploy to production?"
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
-                    echo "🔹 Deploying to Production Server (${PROD_SERVER})..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker pull ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
-
-                    echo "🔹 Stopping existing container (if running)..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker stop ${CONTAINER_NAME} || true"
-                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker rm ${CONTAINER_NAME} || true"
-
-                    echo "🔹 Running new Docker container on ${PROD_SERVER}..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
+                    echo "🔹 Running Docker container on ${PROD_SERVER}..."
+                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
                     '''
                 }
             }
