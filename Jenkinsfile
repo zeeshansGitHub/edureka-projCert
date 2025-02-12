@@ -35,26 +35,11 @@ pipeline {
         stage('Build & Deploy Container') {
             steps {
                 script {
-                    try {
-                        sh '''
-                        ssh ubuntu@${TEST_SERVER} "docker pull ${IMAGE_NAME}"
-                        ssh ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
-                        '''
-                    } catch (Exception e) {
-                        error "Deployment failed, triggering rollback."
-                    }
+                    sh '''
+                    ssh ubuntu@${TEST_SERVER} "docker pull ${IMAGE_NAME}"
+                    ssh ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
+                    '''
                 }
-            }
-        }
-
-        stage('Rollback on Failure') {
-            when {
-                failed()
-            }
-            steps {
-                sh '''
-                ssh ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}"
-                '''
             }
         }
 
@@ -66,6 +51,16 @@ pipeline {
                 ssh ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
                 '''
             }
+        }
+    }
+
+    // ✅ FIXED: Use post { failure { ... } } instead of when { failed() }
+    post {
+        failure {
+            echo "Deployment failed, rolling back..."
+            sh '''
+            ssh ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}"
+            '''
         }
     }
 }
