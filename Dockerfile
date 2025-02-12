@@ -4,6 +4,9 @@ FROM devopsedu/webapp:latest
 # Copy all files from the current directory to the web server's root
 COPY . /var/www/html/
 
+# Set correct permissions for Apache
+RUN chown -R www-data:www-data /var/www/html/
+
 # Expose port 80 for web traffic
 EXPOSE 80
 
