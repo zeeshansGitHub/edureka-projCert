@@ -18,6 +18,13 @@
           - software-properties-common
         state: present
 
+    - name: Install Docker CE and Docker CLI
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+        state: present
+
     - name: Add Docker GPG key
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
@@ -40,16 +47,33 @@
         state: restarted
         enabled: yes
 
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+      failed_when: docker_version.rc != 0
+      changed_when: false
+
     # 🔹 PULL WEBSITE IMAGE
     - name: Pull website Docker image
       docker_image:
         name: devopsedu/webapp
         source: pull
 
+    - name: Verify Docker image is pulled
+      shell: docker images | grep devopsedu/webapp
+      register: image_check
+      failed_when: image_check.rc != 0
+      changed_when: false
+
     # 🔹 STOP AND REMOVE EXISTING CONTAINER (If Running)
-    - name: Stop existing container (if running)
+    - name: Stop and remove existing container (if running)
+      shell: |
+        CONTAINER_ID=$(docker ps -q -f name=php-app)
+        if [ -n "$CONTAINER_ID" ]; then
+          docker stop php-app
+          docker rm php-app
+        fi
       ignore_errors: yes
-      shell: docker stop php-app && docker rm php-app
 
     # 🔹 RUN WEBSITE CONTAINER
     - name: Run website container
@@ -60,3 +84,9 @@
         restart_policy: always
         ports:
           - "80:80"
+
+    - name: Confirm container is running
+      shell: docker ps -q -f name=php-app
+      register: container_status
+      failed_when: container_status.rc != 0
+      changed_when: false
