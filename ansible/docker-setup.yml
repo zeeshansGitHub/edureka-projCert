@@ -1,82 +1,62 @@
-pipeline {
-    agent any
-    environment {
-        TEST_SERVER = "172.31.82.79"
-        PROD_SERVER = "172.31.83.204"
-        REPO_URL = "https://github.com/zeeshansGitHub/edureka-projCert.git"
-        IMAGE_NAME = "devopsedu/webapp"
-        CONTAINER_NAME = "php-app"
-        SSH_CREDENTIALS = 'ssh_key'  // Ensure this is correctly stored in Jenkins credentials
-    }
+---
+- name: Install Docker on Ubuntu
+  hosts: all
+  become: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive  # Prevent interactive prompts
+  tasks:
+    - name: Update apt package index
+      apt:
+        update_cache: yes
 
-    stages {
-        stage('Checkout Code') {
-            steps {
-                git branch: 'main', url: "${REPO_URL}"
-            }
-        }
+    - name: Install required dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
 
-        stage('Install Puppet Agent') {
-            steps {
-                sshagent(credentials: [SSH_CREDENTIALS]) {
-                    sh '''
-                    echo "🔹 Installing Puppet Agent on ${TEST_SERVER}..."
-                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "sudo apt update && sudo apt install -y puppet-agent"
-                    '''
-                }
-            }
-        }
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
 
-        stage('Install Docker with Ansible') {
-            steps {
-                sshagent(credentials: [SSH_CREDENTIALS]) {
-                    sh '''
-                    echo "🔹 Running Ansible playbook to install Docker on ${TEST_SERVER}..."
-                    ansible-playbook -i ${TEST_SERVER}, ansible/docker-setup.yml
-                    '''
-                }
-            }
-        }
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        update_cache: yes  # Ensure repo updates
 
-        stage('Build & Deploy Container') {
-            steps {
-                script {
-                    sshagent(credentials: [SSH_CREDENTIALS]) {
-                        sh '''
-                        echo "🔹 Pulling Docker image on ${TEST_SERVER}..."
-                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker pull ${IMAGE_NAME}"
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
 
-                        echo "🔹 Running Docker container on ${TEST_SERVER}..."
-                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
-                        '''
-                    }
-                }
-            }
-        }
+    - name: Restart Docker service
+      service:
+        name: docker
+        state: restarted
+        enabled: yes
 
-        stage('Deploy to Production') {
-            steps {
-                input message: "🚀 Deploy to production?"
-                sshagent(credentials: [SSH_CREDENTIALS]) {
-                    sh '''
-                    echo "🔹 Deploying to Production Server (${PROD_SERVER})..."
-                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${PROD_SERVER} "docker pull ${IMAGE_NAME}"
-                    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
-                    '''
-                }
-            }
-        }
-    }
+    # 🔹 PULL WEBSITE IMAGE
+    - name: Pull website Docker image
+      docker_image:
+        name: devopsedu/webapp
+        source: pull
 
-    post {
-        failure {
-            echo "⚠️ Deployment failed, rolling back..."
-            sshagent(credentials: [SSH_CREDENTIALS]) {
-                sh '''
-                echo "🔹 Stopping and removing container on ${TEST_SERVER}..."
-                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}"
-                '''
-            }
-        }
-    }
-}
+    # 🔹 STOP AND REMOVE EXISTING CONTAINER (If Running)
+    - name: Stop existing container (if running)
+      ignore_errors: yes
+      shell: docker stop php-app && docker rm php-app
+
+    # 🔹 RUN WEBSITE CONTAINER
+    - name: Run website container
+      docker_container:
+        name: php-app
+        image: devopsedu/webapp
+        state: started
+        restart_policy: always
+        ports:
+          - "80:80"
