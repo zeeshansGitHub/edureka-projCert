@@ -58,7 +58,7 @@ pipeline {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     echo "🔹 Running Ansible playbook to install Docker on ${TEST_SERVER}..."
-                    ansible-playbook -i ${TEST_SERVER}, --user=ubuntu ansible/docker-setup.yml
+                    ansible-playbook -i ${TEST_SERVER}, --user=ubuntu --private-key=~/.ssh/id_rsa ansible/docker-setup.yml
                     '''
                 }
             }
@@ -69,7 +69,7 @@ pipeline {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     echo "🔹 Verifying Docker installation on ${TEST_SERVER}..."
-                    ssh ubuntu@${TEST_SERVER} "docker --version || echo '❌ Docker installation failed!'"
+                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker --version || echo '❌ Docker installation failed!'"
                     '''
                 }
             }
@@ -79,7 +79,10 @@ pipeline {
             steps {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
-                    echo "🔹 Running Docker container on ${TEST_SERVER}..."
+                    echo "🔹 Stopping old container if running..."
+                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
+
+                    echo "🔹 Running new Docker container on ${TEST_SERVER}..."
                     ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
                     '''
                 }
@@ -88,10 +91,13 @@ pipeline {
 
         stage('Deploy to Production') {
             steps {
-                input message: "🚀 Deploy to production?"
+                input message: "Deploy to production?"
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
-                    echo "🔹 Running Docker container on ${PROD_SERVER}..."
+                    echo "🔹 Stopping old container on Production..."
+                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
+
+                    echo "🔹 Running new Docker container on ${PROD_SERVER}..."
                     ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
                     '''
                 }
@@ -102,7 +108,7 @@ pipeline {
     post {
         failure {
             script {
-                echo "⚠️ Deployment failed, rolling back..."
+                echo "Deployment failed, rolling back..."
             }
             sshagent(credentials: [SSH_CREDENTIALS]) {
                 sh '''
