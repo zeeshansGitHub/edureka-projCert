@@ -20,30 +20,44 @@ pipeline {
         }
 
          stage('Install Docker') {
-
             steps {
-
                 sh '''
-                    sudo su    
-                    nano /etc/sudoers
-                    sudo apt-get update
-                    #User privilege specification.
-                    jenkins ALL= NOPASSWD: ALL
-                    sudo apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
-
-                    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
-
-                    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
-
-                    sudo apt-get update
-
-                    sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-
+                    if ! command -v docker &> /dev/null; then
+                        echo "❌ Docker is not installed! Installing now..."
+                        
+                        # Update package list
+                        sudo apt-get update -y
+        
+                        # Install required dependencies
+                        sudo apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
+        
+                        # Add Docker's official GPG key
+                        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        
+                        # Add Docker repository
+                        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+        
+                        # Update package list again
+                        sudo apt-get update -y
+        
+                        # Install Docker
+                        sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+        
+                        # Start & enable Docker
+                        sudo systemctl start docker
+                        sudo systemctl enable docker
+        
+                        # Add Jenkins user to the Docker group
+                        sudo usermod -aG docker jenkins
+        
+                        echo "✅ Docker installed successfully."
+                    else
+                        echo "✅ Docker is already installed."
+                    fi
                 '''
-
             }
-
         }
+
 
 
 
