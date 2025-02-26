@@ -19,6 +19,27 @@ pipeline {
             }
         }
 
+        stage('Check Docker Installation') {
+            steps {
+                script {
+                    echo "🔹 Verifying if Docker is installed..."
+                }
+                sh '''
+                if ! command -v docker &> /dev/null; then
+                    echo "❌ Docker is not installed! Installing now..."
+                    sudo apt update
+                    sudo apt install -y docker.io
+                    sudo systemctl start docker
+                    sudo systemctl enable docker
+                    sudo usermod -aG docker jenkins
+                    echo "✅ Docker installed successfully."
+                else
+                    echo "✅ Docker is already installed."
+                fi
+                '''
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -69,7 +90,7 @@ pipeline {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     echo "🔹 Verifying Docker installation on ${TEST_SERVER}..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker --version || echo '❌ Docker installation failed!'"
+                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker --version || (echo '❌ Docker installation failed!' && exit 1)"
                     '''
                 }
             }
@@ -80,7 +101,7 @@ pipeline {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     echo "🔹 Stopping old container if running..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
+                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker ps -q --filter name=${CONTAINER_NAME} | grep -q . && docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} || echo 'No existing container to stop'"
 
                     echo "🔹 Running new Docker container on ${TEST_SERVER}..."
                     ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
@@ -91,11 +112,11 @@ pipeline {
 
         stage('Deploy to Production') {
             steps {
-                input message: "Deploy to production?"
+                input message: "🚀 Deploy to production?"
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     echo "🔹 Stopping old container on Production..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
+                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker ps -q --filter name=${CONTAINER_NAME} | grep -q . && docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} || echo 'No existing container to stop'"
 
                     echo "🔹 Running new Docker container on ${PROD_SERVER}..."
                     ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
@@ -108,7 +129,7 @@ pipeline {
     post {
         failure {
             script {
-                echo "Deployment failed, rolling back..."
+                echo "⚠️ Deployment failed, rolling back..."
             }
             sshagent(credentials: [SSH_CREDENTIALS]) {
                 sh '''
