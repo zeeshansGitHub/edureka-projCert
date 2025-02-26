@@ -4,9 +4,9 @@ pipeline {
         TEST_SERVER = "172.31.82.79"
         PROD_SERVER = "172.31.83.204"
         REPO_URL = "https://github.com/zeeshansGitHub/edureka-projCert.git"
-        IMAGE_NAME = "devopsedu/webapp"  // Custom name, but not pushed to Docker Hub
+        IMAGE_NAME = "devopsedu/webapp"
         CONTAINER_NAME = "php-app"
-        SSH_CREDENTIALS = 'ssh_key'  // Ensure this is correctly stored in Jenkins credentials
+        SSH_CREDENTIALS = 'ssh_key'
     }
 
     stages {
@@ -27,10 +27,8 @@ pipeline {
                 sh '''
                 if ! command -v docker &> /dev/null; then
                     echo "❌ Docker is not installed! Installing now..."
-                    sudo apt update
-                    sudo apt install -y docker.io
-                    sudo systemctl start docker
-                    sudo systemctl enable docker
+                    sudo apt update && sudo apt install -y docker.io
+                    sudo systemctl start docker && sudo systemctl enable docker
                     sudo usermod -aG docker jenkins
                     echo "✅ Docker installed successfully."
                 else
@@ -46,6 +44,7 @@ pipeline {
                     echo "🔹 Building Docker image from Dockerfile..."
                 }
                 sh '''
+                cd $WORKSPACE
                 docker build -t ${IMAGE_NAME}:latest .
                 '''
             }
@@ -58,7 +57,7 @@ pipeline {
                 }
                 sh '''
                 sudo apt update
-                sudo apt install -y ansible puppet-agent
+                sudo apt install -y ansible puppet-agent || true
                 '''
             }
         }
@@ -68,7 +67,7 @@ pipeline {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     echo "🔹 Installing Puppet Agent on ${TEST_SERVER}..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "sudo apt update && sudo apt install -y puppet-agent"
+                    ssh -o StrictHostKeyChecking=no ubuntu@${TEST_SERVER} "sudo apt update && sudo apt install -y puppet-agent || true"
                     '''
                 }
             }
@@ -79,7 +78,7 @@ pipeline {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     echo "🔹 Running Ansible playbook to install Docker on ${TEST_SERVER}..."
-                    ansible-playbook -i ${TEST_SERVER}, --user=ubuntu --private-key=~/.ssh/id_rsa ansible/docker-setup.yml
+                    ansible-playbook -i "${TEST_SERVER}," --user=ubuntu --private-key=~/.ssh/id_rsa ansible/docker-setup.yml
                     '''
                 }
             }
