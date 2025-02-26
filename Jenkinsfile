@@ -19,24 +19,27 @@ pipeline {
             }
         }
 
-        stage('Check Docker Installation') {
-            steps {
-                script {
-                    echo "🔹 Verifying if Docker is installed..."
-                }
-                sh '''
-                if ! command -v docker &> /dev/null; then
-                    echo "❌ Docker is not installed! Installing now..."
-                    sudo apt update && sudo apt install -y docker.io
-                    sudo systemctl start docker && sudo systemctl enable docker
-                    sudo usermod -aG docker jenkins
-                    echo "✅ Docker installed successfully."
-                else
-                    echo "✅ Docker is already installed."
-                fi
-                '''
+       stage('Check Docker Installation') {
+        steps {
+            script {
+                echo "🔹 Verifying if Docker is installed..."
             }
+            sh '''
+            if ! command -v docker &> /dev/null; then
+                echo "❌ Docker is not installed! Installing now..."
+                echo "jenkins" | sudo -S apt update
+                echo "jenkins" | sudo -S apt install -y docker.io
+                echo "jenkins" | sudo -S systemctl start docker
+                echo "jenkins" | sudo -S systemctl enable docker
+                echo "jenkins" | sudo -S usermod -aG docker jenkins
+                echo "✅ Docker installed successfully."
+            else
+                echo "✅ Docker is already installed."
+            fi
+            '''
         }
+    }
+
 
         stage('Build Docker Image') {
             steps {
