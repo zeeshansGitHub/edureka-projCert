@@ -19,25 +19,28 @@ pipeline {
             }
         }
 
-       stage('Check Docker Installation') {
+         stage('Install Docker') {
+
             steps {
-                script {
-                    echo "🔹 Verifying if Docker is installed..."
-                }
+
                 sh '''
-                if ! command -v docker &> /dev/null; then
-                    echo "❌ Docker is not installed! Installing now..."
-                    sudo apt update
-                    sudo apt install -y docker.io
-                    sudo systemctl start docker
-                    sudo systemctl enable docker
-                    sudo usermod -aG docker jenkins
-                    echo "✅ Docker installed successfully."
-                else
-                    echo "✅ Docker is already installed."
-                fi
+
+                    sudo apt-get update
+
+                    sudo apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
+
+                    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+
+                    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+
+                    sudo apt-get update
+
+                    sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+
                 '''
+
             }
+
         }
 
 
