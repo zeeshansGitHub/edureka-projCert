@@ -94,10 +94,7 @@ pipeline {
             steps {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
-                    echo "🔹 Stopping old container on Production..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "
-                        docker ps -q --filter name=${CONTAINER_NAME} | grep -q . &&
-                        docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} || echo 'No existing container to stop'"
+                    
 
                     echo "🔹 Pulling latest Docker image..."
                     ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker pull ${IMAGE_NAME}:latest"
