@@ -109,8 +109,8 @@ pipeline {
                     '''
                 }
             }
+        }
     }
-
 
     post {
         failure {
