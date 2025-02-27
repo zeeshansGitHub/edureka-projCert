@@ -24,17 +24,18 @@ pipeline {
 
 
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    echo "🔹 Building Docker image from Dockerfile..."
-                }
-                sh '''
-                cd $WORKSPACE
-                docker build -t ${IMAGE_NAME}:latest .
-                '''
+       stage('Build Docker Image') {
+        steps {
+            script {
+                echo "🔹 Building Docker image from Dockerfile..."
             }
+            sh '''
+            cd "$WORKSPACE"
+            docker build -t "${IMAGE_NAME}:latest" .
+            '''
         }
+}
+
 
         stage('Install Required Packages') {
             steps {
