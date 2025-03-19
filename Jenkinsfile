@@ -95,12 +95,12 @@ pipeline {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     sh '''
                     
-
-                    echo "🔹 Pulling latest Docker image..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker pull ${IMAGE_NAME}:latest"
-                     echo "🔹 Stopping and removing old container if it exists..."
+                    echo "🔹 Stopping and removing old container if it exists..."
                      ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "
                      docker ps -q --filter name=${CONTAINER_NAME} | grep -q . && docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} || echo 'No existing container to stop'"
+                    echo "🔹 Pulling latest Docker image..."
+                    ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "docker pull ${IMAGE_NAME}:latest"
+                     
                      
                     echo "🔹 Running new Docker container on ${PROD_SERVER}..."
                     ssh -o StrictHostKeyChecking=no ubuntu@${PROD_SERVER} "
